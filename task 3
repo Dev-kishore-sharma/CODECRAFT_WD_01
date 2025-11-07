@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tic‑Tac‑Toe — CODE CRAFT</title>
+  <style>
+    :root{
+      --bg:#0f1724; /* deep navy */
+      --panel:#0b1220;
+      --accent:#06b6d4; /* cyan */
+      --muted:#94a3b8;
+      --win:#4ade80; /* green */
+      --lose:#fb7185; /* red */
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#021025);color:#e6eef6}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .card{width:min(720px,96vw);background:linear-gradient(180deg,rgba(255,255,255,0.02),var(--panel));border-radius:14px;padding:20px;box-shadow:0 6px 30px rgba(2,6,23,0.6);}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+    header h1{font-size:20px;margin:0}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:inherit;cursor:pointer;font-weight:600}
+    .btn:hover{transform:translateY(-2px)}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),#7c3aed);color:#021025}
+
+    .options{display:flex;gap:12px;align-items:center}
+    .option{display:flex;gap:8px;align-items:center}
+    select,input[type=radio]{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;padding:6px;border-radius:8px}
+
+    .board-container{display:grid;grid-template-columns:1fr 260px;gap:18px}
+    @media (max-width:820px){.board-container{grid-template-columns:1fr;}}
+
+    /* board */
+    .board{width:100%;aspect-ratio:1/1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px}
+    .cell{background:transparent;border-radius:10px;border:1px dashed rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:800;cursor:pointer;user-select:none;transition:transform .12s ease,background .12s ease}
+    .cell:hover{transform:translateY(-4px);box-shadow:0 6px 18px rgba(3,7,18,0.6)}
+    .cell.disabled{cursor:not-allowed;opacity:0.9}
+
+    .panel{padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .meta{display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;align-items:center;justify-content:space-between}
+    .status{font-size:14px;color:var(--muted)}
+    .players{display:flex;gap:10px}
+    .player{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:8px}
+    .player .name{font-weight:700}
+    .score{font-size:20px;font-weight:800}
+
+    .highlight{background:linear-gradient(90deg, rgba(74,222,128,0.14), rgba(6,182,212,0.06));border:1px solid rgba(74,222,128,0.18)}
+
+    footer{margin-top:12px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+
+    /* winning line overlay */
+    .line{position:relative}
+    .winning-line{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+
+    /* small helpers */
+    .muted{color:var(--muted)}
+    .switch{display:flex;gap:6px;align-items:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="application" aria-label="Tic Tac Toe game">
+      <header>
+        <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:800;color:#021025">TTT</div>
+        <div>
+          <h1> Tic‑Tac‑Toe — CODE CRAFT</h1>
+          <p>Play locally vs another player or the AI. Good UX, keyboard accessible, and a perfect-play AI available.</p>
+        </div>
+      </header>
+
+      <div class="controls">
+        <div class="options">
+          <label class="option">Mode:
+            <select id="modeSelect" aria-label="Select mode">
+              <option value="pvp">2‑Player (Local)</option>
+              <option value="pvc">Play vs Computer</option>
+            </select>
+          </label>
+
+          <label class="option">AI difficulty:
+            <select id="aiDifficulty" aria-label="AI difficulty">
+              <option value="easy">Easy (random)</option>
+              <option value="hard">Hard (unbeatable)</option>
+            </select>
+          </label>
+
+          <label class="option switch">Starting:
+            <label><input type="radio" name="start" value="X" checked> X</label>
+            <label><input type="radio" name="start" value="O"> O</label>
+          </label>
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <button class="btn" id="undoBtn" disabled title="Undo last move">Undo</button>
+          <button class="btn" id="resetBtn">Reset</button>
+          <button class="btn primary" id="newGameBtn">New Game</button>
+        </div>
+      </div>
+
+      <div class="board-container">
+        <div>
+          <div class="board" id="board" role="grid" aria-label="tic tac toe board">
+            <!-- 9 cells inserted by JS -->
+          </div>
+          <div class="line" id="lineRoot"></div>
+        </div>
+
+        <aside class="panel meta" aria-hidden="false">
+          <div class="row">
+            <div>
+              <div class="status" id="status">Status: Ready</div>
+              <div class="muted" style="font-size:13px;margin-top:6px">Click a cell or use keyboard (1–9)</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:13px;color:var(--muted)">Turn</div>
+              <div id="turnIndicator" style="font-weight:900;font-size:20px">—</div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:8px">
+            <div class="players">
+              <div class="player" id="playerX">
+                <div class="name">Player X</div>
+                <div class="score" id="scoreX">0</div>
+              </div>
+              <div class="player" id="playerO">
+                <div class="name">Player O</div>
+                <div class="score" id="scoreO">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="font-weight:700">Controls</div>
+            <ul style="margin:8px 0 0 16px;color:var(--muted)">
+              <li>Click or use numeric keys 1–9 to play</li>
+              <li>Undo only reverts last move (vs human)</li>
+              <li>AI "Hard" uses minimax (perfect play)</li>
+            </ul>
+          </div>
+
+          <footer>
+            <div class="muted">CODE CRAFT</div>
+            <div class="muted">Built with HTML • CSS • JavaScript</div>
+          </footer>
+        </aside>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ====== Game state ======
+    const boardEl = document.getElementById('board');
+    const lineRoot = document.getElementById('lineRoot');
+    const statusEl = document.getElementById('status');
+    const turnIndicator = document.getElementById('turnIndicator');
+    const scoreX = document.getElementById('scoreX');
+    const scoreO = document.getElementById('scoreO');
+
+    const modeSelect = document.getElementById('modeSelect');
+    const aiDifficulty = document.getElementById('aiDifficulty');
+    const undoBtn = document.getElementById('undoBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const newGameBtn = document.getElementById('newGameBtn');
+
+    let cells = Array(9).fill(null); // 'X' | 'O' | null
+    let currentPlayer = 'X';
+    let startingPlayer = 'X';
+    let gameOver = false;
+    let history = []; // stack of moves: {index, player}
+    let scores = {X:0, O:0};
+
+    // winning combinations
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // Initialize board cells
+    function createBoard(){
+      boardEl.innerHTML = '';
+      for(let i=0;i<9;i++){
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.setAttribute('role','button');
+        div.setAttribute('aria-label', 'cell ' + (i+1));
+        div.setAttribute('data-index', i);
+        div.tabIndex = 0;
+        div.addEventListener('click', onCellClick);
+        div.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') onCellClick(e); });
+        boardEl.appendChild(div);
+      }
+    }
+
+    function render(){
+      const cellEls = boardEl.querySelectorAll('.cell');
+      cellEls.forEach((el, i)=>{
+        el.textContent = cells[i] || '';
+        el.classList.toggle('disabled', !!cells[i] || gameOver);
+      });
+      turnIndicator.textContent = gameOver ? '—' : currentPlayer;
+      statusEl.textContent = gameOver ? statusEl.textContent : `Turn: ${currentPlayer}`;
+      undoBtn.disabled = history.length === 0 || modeSelect.value === 'pvc';
+    }
+
+    function startNewGame(){
+      cells = Array(9).fill(null);
+      history = [];
+      gameOver = false;
+      startingPlayer = document.querySelector('input[name="start"]:checked').value;
+      currentPlayer = startingPlayer;
+      statusEl.textContent = `New game — ${modeSelect.value === 'pvc' ? 'VS Computer' : '2 Player'} mode`;
+      clearWinningLine();
+      render();
+      // if AI goes first
+      if(modeSelect.value === 'pvc' && currentPlayer === 'O'){
+        aiMove();
+      }
+    }
+
+    function cellAvailable(index){ return !cells[index] && !gameOver; }
+
+    function onCellClick(e){
+      const index = Number(e.currentTarget.dataset.index);
+      if(!cellAvailable(index)) return;
+      playMove(index, currentPlayer);
+      if(modeSelect.value === 'pvc' && !gameOver){
+        // give tiny delay for UX
+        setTimeout(()=>{ aiMove(); }, 220);
+      }
+    }
+
+    function playMove(index, player){
+      if(!cellAvailable(index)) return false;
+      cells[index] = player;
+      history.push({index, player});
+      checkGameState();
+      if(!gameOver) currentPlayer = player === 'X' ? 'O' : 'X';
+      render();
+      return true;
+    }
+
+    function checkGameState(){
+      const winnerInfo = getWinner();
+      if(winnerInfo){
+        gameOver = true;
+        statusEl.textContent = `Winner: ${winnerInfo.player}`;
+        scores[winnerInfo.player]++;
+        scoreX.textContent = scores.X;
+        scoreO.textContent = scores.O;
+        showWinningLine(winnerInfo.combo);
+        return;
+      }
+      if(cells.every(c => c !== null)){
+        gameOver = true;
+        statusEl.textContent = 'Draw';
+        return;
+      }
+      statusEl.textContent = `Next: ${currentPlayer}`;
+    }
+
+    function getWinner(){
+      for(const combo of wins){
+        const [a,b,c] = combo;
+        if(cells[a] && cells[a] === cells[b] && cells[a] === cells[c]){
+          return {player: cells[a], combo};
+        }
+      }
+      return null;
+    }
+
+    function showWinningLine(combo){
+      clearWinningLine();
+      const overlay = document.createElement('div');
+      overlay.className = 'winning-line';
+      // absolute overlay that draws a line depending on combo
+      // We'll draw using an SVG so it scales nicely
+      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('width','100%');
+      svg.setAttribute('height','100%');
+      svg.setAttribute('viewBox','0 0 300 300');
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('stroke', 'rgba(74,222,128,0.95)');
+      line.setAttribute('stroke-width','12');
+      line.setAttribute('stroke-linecap','round');
+
+      // Map cell index to center coordinates in 3x3 grid in 300x300 box
+      const coords = [
+        [50,50],[150,50],[250,50],
+        [50,150],[150,150],[250,150],
+        [50,250],[150,250],[250,250]
+      ];
+      const [start, , end] = combo;
+      const [x1,y1] = coords[start];
+      const [x2,y2] = coords[end];
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      svg.appendChild(line);
+      overlay.appendChild(svg);
+      overlay.style.position = 'absolute';
+      overlay.style.left = boardEl.offsetLeft + 'px';
+      overlay.style.top = boardEl.offsetTop + 'px';
+      overlay.style.pointerEvents = 'none';
+      lineRoot.appendChild(overlay);
+    }
+
+    function clearWinningLine(){ lineRoot.innerHTML = ''; }
+
+    // ======= AI =======
+    function aiMove(){
+      if(gameOver) return;
+      const difficulty = aiDifficulty.value;
+      if(difficulty === 'easy'){
+        // random available
+        const avail = cells.map((v,i)=> v?null:i).filter(i=>i!==null);
+        if(avail.length===0) return;
+        const choice = avail[Math.floor(Math.random()*avail.length)];
+        playMove(choice, currentPlayer);
+        return;
+      }
+      // hard = minimax (perfect play)
+      const best = minimax(cells.slice(), currentPlayer);
+      if(best.index !== null && best.index !== undefined){
+        playMove(best.index, currentPlayer);
+      }
+    }
+
+    // Minimax algorithm for perfect play
+    function minimax(boardState, player){
+      const opponent = player === 'X' ? 'O' : 'X';
+      const winnerNow = computeWinner(boardState);
+      if(winnerNow === 'X') return {score: -10};
+      if(winnerNow === 'O') return {score: 10};
+      if(boardState.every(c=>c!==null)) return {score: 0};
+
+      const moves = [];
+      for(let i=0;i<9;i++){
+        if(boardState[i] === null){
+          boardState[i] = player;
+          const result = minimax(boardState, opponent);
+          moves.push({index:i, score: result.score});
+          boardState[i] = null;
+        }
+      }
+
+      // If current player is 'O' (AI) we maximize; if 'X' we minimize
+      if(player === 'O'){
+        let best = moves.reduce((a,b)=> b.score > a.score ? b : a, moves[0]);
+        return best;
+      } else {
+        let best = moves.reduce((a,b)=> b.score < a.score ? b : a, moves[0]);
+        return best;
+      }
+    }
+
+    function computeWinner(b){
+      for(const combo of wins){
+        const [a,b1,c] = combo;
+        if(b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
+      }
+      return null;
+    }
+
+    // ======= Undo =======
+    function undo(){
+      if(history.length === 0) return;
+      // In PVC mode undo disabled. In PVP, revert last move
+      const last = history.pop();
+      cells[last.index] = null;
+      gameOver = false;
+      currentPlayer = last.player; // give turn back to who played last
+      clearWinningLine();
+      render();
+    }
+
+    // ======= Event listeners =======
+    modeSelect.addEventListener('change', ()=>{
+      // disable undo in pvc
+      undoBtn.disabled = modeSelect.value === 'pvc';
+      startNewGame();
+    });
+
+    aiDifficulty.addEventListener('change', ()=>{ startNewGame(); });
+    undoBtn.addEventListener('click', ()=> undo());
+    resetBtn.addEventListener('click', ()=>{ scores = {X:0,O:0}; scoreX.textContent = 0; scoreO.textContent = 0; startNewGame(); });
+    newGameBtn.addEventListener('click', ()=> startNewGame());
+
+    // keyboard support: 1..9 map to indexes bottom-left to top-right or top-left? We'll use numpad-like mapping 1-9 left-to-right top-to-bottom
+    window.addEventListener('keydown', (e)=>{
+      if(e.key >= '1' && e.key <= '9'){
+        const i = Number(e.key) - 1; // 0..8
+        if(cellAvailable(i)){
+          playMove(i, currentPlayer);
+          if(modeSelect.value === 'pvc' && !gameOver){ setTimeout(()=>aiMove(), 220); }
+        }
+      }
+      if(e.key === 'z' && (e.ctrlKey || e.metaKey)){
+        if(modeSelect.value === 'pvp') undo();
+      }
+    });
+
+    // small helper: clicking outside board to focus keyboard
+    boardEl.addEventListener('click', ()=> boardEl.focus());
+
+    // initial setup
+    createBoard();
+    startNewGame();
+
+    // Accessibility: announce game end via ARIA live region
+    // (We update statusEl textContent; this element acts as status)
+
+    // Notes for maintenance: This app keeps state in memory and is single-page. Save the file as .html and open in a browser.
+  </script>
+</body>
+</html>
